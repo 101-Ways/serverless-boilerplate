@@ -6,7 +6,7 @@ Parameters:
     Description: Name for the stack instance
     Type: String
   WebZip:
-    Description: zip of the classifieds lambda
+    Description: zip of the web lambda
     Type: String
   SecurityGroupIds:
     Description: List of security groups

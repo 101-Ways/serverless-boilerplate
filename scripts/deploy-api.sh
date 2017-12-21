@@ -14,15 +14,17 @@ stackName=$1
 dbConn=$2
 s3Bucket=$3
 region="eu-west-1"
-templateFile="stream.yaml"
+templateFile="../api.yaml"
 
 # Making sure npm install all the things
+pushd ..
 npm install
+popd
 
 # Zip artifacts
-file="/tmp/stream-consumer-$stackName-`date '+%Y%m%d%H%M%S'`.zip"
-pushd src
-zip -r $file stream -x ".*"
+file="/tmp/lambda-$stackName-`date '+%Y%m%d%H%M%S'`.zip"
+pushd ../src
+zip -r $file api -x ".*"
 popd
 aws s3 cp $file --region $region s3://$s3Bucket/artifacts/
 rm $file
@@ -41,6 +43,7 @@ else
 fi
 
 aws cloudformation $cfnCommand --stack-name $stackName --capabilities CAPABILITY_IAM --template-body file://$templateFile --region $region --parameters \
-ParameterKey=DbConn,ParameterValue=$dbConn ParameterKey=Bucket,ParameterValue=$s3Bucket ParameterKey=StreamConsumerZip,ParameterValue=$(zipFile $file)
+ParameterKey=StackName,ParameterValue=$stackName ParameterKey=DbConn,ParameterValue=$dbConn \
+ParameterKey=Bucket,ParameterValue=$s3Bucket ParameterKey=LambdaZip,ParameterValue=$(zipFile $file)
 
 aws cloudformation wait $cfnWait --stack-name $stackName --region $region
