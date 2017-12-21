@@ -1,0 +1,173 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Serverless API boilerplate
+
+Parameters:
+  StackName:
+    Description: Name for the stack instance
+    Type: String
+  DbConn:
+    Description: The connection string of the database
+    Type: String
+    NoEcho: true
+  Bucket:
+    Description: bucket for the lambda function zip file
+    Type: String
+  LambdaZip:
+    Description: zip of the lambda
+    Type: String
+  SecurityGroupIds:
+    Description: List of security groups
+    Type: String
+    Default: sg-xxxxxxxx
+  SubnetIds:
+    Description: List of subnets
+    Type: String
+    Default: subnet-xxxxxxxx,subnet-xxxxxxxx,subnet-xxxxxxxx
+  ApiHostname:
+    Description: hostname for the api
+    Type: String
+    Default: api.example.com
+
+Resources:
+
+  LambdaFnc:
+    Type: AWS::Lambda::Function
+    Properties:
+      Timeout: 15
+      Handler: index.router
+      Runtime: nodejs6.10
+      Code:
+        S3Bucket: !Ref Bucket
+        S3Key: !Ref LambdaZip
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          DB: !Ref DbConn
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Body:
+        swagger: 2.0
+        info:
+          version: 1.0
+          title:
+            Ref: AWS::StackName
+        securityDefinitions:
+          api_key:
+            type: apiKey
+            name: x-api-key
+            in: header
+        paths:
+          '/{proxy+}':
+            x-amazon-apigateway-any-method:
+              security:
+                - api_key: []
+              responses: {}
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFnc.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+      Name: !Sub ${StackName}
+
+  Stage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      CacheClusterEnabled: true
+      CacheClusterSize: 1.6
+      StageName: stage
+      Description: Stage
+      RestApiId: !Ref ApiGateway
+      DeploymentId: !Ref APIDeployment
+
+  APIDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ApiGateway
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFnc
+      Principal: apigateway.amazonaws.com
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DeleteNetworkInterface
+                - ec2:DetachNetworkInterface
+                - ec2:ModifyNetworkInterfaceAttribute
+                - ec2:ResetNetworkInterfaceAttribute
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+                Resource: '*'
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub ${StackName}-ApiKey
+      Enabled: true
+      StageKeys:
+        - RestApiId:
+            Ref: ApiGateway
+          StageName: !Ref Stage
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      Description: Usage plan for api keys
+      ApiStages:
+        - ApiId: !Ref ApiGateway
+          Stage: !Ref Stage
+      Quota:
+        Limit: 5000
+        Period: DAY
+      Throttle:
+        BurstLimit: 200
+        RateLimit: 100
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+  ApiMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      BasePath: !Ref StackName
+      DomainName: !Ref ApiHostname
+      RestApiId: !Ref ApiGateway
+      Stage: !Ref Stage

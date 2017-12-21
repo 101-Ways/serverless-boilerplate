@@ -1,0 +1,77 @@
+
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Api boilerplate",
+    "description": "This api provides endpoints to data",
+    "version": "1.0"
+  },
+  "securityDefinitions" :  {
+    "apiKey": {
+      "type": "apiKey",
+      "name": "x-api-key",
+      "in": "header"
+    }
+  },
+  "schemes": ["https"],
+  "host": "api.example.com",
+  "basePath": "/api",
+  "produces": ["application/json"],
+  "paths": {
+    "/todos": {
+      "get": {
+        "x-swagger-router-controller": "todos",
+        "operationId": "todosPaged",
+        "tags": ["/todos"],
+        "description": "",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "type": "string",
+            "enum": ["asc" ,"desc"]
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
