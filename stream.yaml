@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Serverless Stream consumer boilerplate
+
+Parameters:
+  DbConn:
+    Description: The connection string of the database
+    Type: String
+    NoEcho: true
+  SecurityGroupIds:
+    Description: List of security groups
+    Type: String
+    Default: sg-xxxxxxxx
+  SubnetIds:
+    Description: List of subnets
+    Type: String
+    Default: subnet-xxxxxxxx,subnet-xxxxxxxx,subnet-xxxxxxxx
+  StreamConsumerZip:
+    Description: zip of the stream consumer lambda
+    Type: String
+  Bucket:
+    Description: bucket for the lambda function zip file
+    Type: String
+
+Resources:
+
+  Stream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      ShardCount: 1
+
+  StreamConsumerLambdaFnc:
+    Type: AWS::Lambda::Function
+    Properties:
+      Timeout: 15
+      Handler: index.handler
+      Runtime: nodejs6.10
+      Code:
+        S3Bucket: !Ref Bucket
+        S3Key: !Ref StreamConsumerZip
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          DB: !Ref DbConn
+
+  StreamEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      Enabled: true
+      BatchSize: 1000
+      EventSourceArn: !GetAtt Stream.Arn
+      FunctionName: !GetAtt StreamConsumerLambdaFnc.Arn
+      StartingPosition: TRIM_HORIZON
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DeleteNetworkInterface
+                - ec2:DetachNetworkInterface
+                - ec2:ModifyNetworkInterfaceAttribute
+                - ec2:ResetNetworkInterfaceAttribute
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+                - kinesis:GetRecords
+                - kinesis:GetShardIterator
+                - kinesis:DescribeStream
+                - kinesis:ListStreams
+                - kinesis:PutRecord
+                Resource: '*'
