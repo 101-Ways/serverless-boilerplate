@@ -1,0 +1,1 @@
+The purpose of this folder is to contains custom functions/modules that fix temporary problems of the CRA boilerplate.
