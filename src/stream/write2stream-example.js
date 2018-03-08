@@ -7,7 +7,7 @@ exports.writeToStream = (stream, payload) => {
 
     const message = {
       Data: JSON.stringify(payload),
-      PartitionKey: 'sensor-' + Math.floor(Math.random() * 100000),
+      PartitionKey: Math.floor(Math.random() * 100000),
       StreamName: stream
     }
 
