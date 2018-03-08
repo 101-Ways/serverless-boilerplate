@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Web CDN
+
+Parameters:
+  ACMCertificate:
+    Description: Arn of the certificate to use by the CDN
+    Type: String
+    Default: arn:aws:acm:us-east-1:XXXXXXXXXXXX:certificate/302fb7c6-d8k7-264e-9422-630551fef88f
+
+Resources:
+
+  StaticAssets:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: cdn-bucket.s3.amazonaws.com
+          Id: S3-cdn-bucket
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${StaticAssetsAccessIdentity}
+        Enabled: true
+        Aliases:
+        - cdn.example.com
+        IPV6Enabled: true
+        DefaultCacheBehavior:
+          Compress: true
+          ForwardedValues:
+            Headers:
+              - Origin
+              - Access-Control-Request-Headers
+              - Access-Control-Request-Method
+            QueryString: true
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          TargetOriginId: S3-cdn-bucket
+          ViewerProtocolPolicy: https-only
+        PriceClass: PriceClass_All
+        HttpVersion: http2
+        ViewerCertificate:
+          AcmCertificateArn: !Ref ACMCertificate
+          SslSupportMethod: sni-only
+
+  StaticAssetsAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: CFOriginAccessIdentity
+
+  StaticAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: cdn-bucket
+      PolicyDocument:
+        Statement:
+          -
+            Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: 'arn:aws:s3:::cdn-bucket/*'
+            Principal:
+              CanonicalUser: !GetAtt StaticAssetsAccessIdentity.S3CanonicalUserId
+
+  StaticAssetsDNSEntry:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: example.com.
+      Name: cdn.example.com.
+      Type: CNAME
+      TTL: 3600
+      ResourceRecords:
+      - !GetAtt StaticAssets.DomainName

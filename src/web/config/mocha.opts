@@ -1,0 +1,4 @@
+src/**/*test.js
+--require ./config/tests/cssmodules.js
+--require ./config/tests/fileignore.js
+--compilers js:babel-core/register

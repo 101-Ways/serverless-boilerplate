@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z $1 ] || [ -z $2 ]; then
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
     echo "Please provide stackName, a domain and bucket name"
     echo "Example: ./deploy.sh johndoe mydomain.example.com myBucket"
     echo "The domain should already be setup in ApiGateway custom domains."
@@ -22,6 +22,10 @@ timestamp=$(date '+%Y%m%d%H%M%S')
 echo "Install dependencies and generating bundles"
 npm install
 npm run build
+
+echo "Building a CDN for the static assets"
+aws s3 sync build/ s3://$cdnBucket/$lowercaseStackName/$githash/
+publicUrl="https://$domain/$lowercaseStackName/$githash"
 
 # Zip artifacts
 file="/tmp/web-$lowercaseStackName-$timestamp.zip"
@@ -45,6 +49,6 @@ fi
 
 aws cloudformation $cfnCommand --stack-name $stackName --capabilities CAPABILITY_IAM --template-body file://$templateFile --region $region --parameters \
 ParameterKey=StackName,ParameterValue=$lowercaseStackName ParameterKey=Bucket,ParameterValue=$s3Bucket ParameterKey=WebZip,ParameterValue=$(zipFile $file) \
-ParameterKey=DomainName,ParameterValue=$domain
+ParameterKey=DomainName,ParameterValue=$domain ParameterKey=PublicUrl,ParameterValue=$publicUrl
 
 aws cloudformation wait $cfnWait --stack-name $stackName --region $region
