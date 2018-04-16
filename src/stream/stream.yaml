@@ -33,7 +33,7 @@ Resources:
     Properties:
       Timeout: 15
       Handler: index.handler
-      Runtime: nodejs6.10
+      Runtime: nodejs8.10
       Code:
         S3Bucket: !Ref Bucket
         S3Key: !Ref StreamConsumerZip
